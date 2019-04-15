@@ -1,6 +1,5 @@
 import requests
-from multiprocessing.dummy import Pool as ThreadPool
-from threading import Lock, Thread
+from threading import Thread
 from queue import Queue
 
 from bs4 import BeautifulSoup
@@ -76,7 +75,6 @@ req = requests.get(url)
 if req.status_code == 404:
         print("Country not found!")
 else:
-        bs = BeautifulSoup(req.text, "html.parser")
 
         print(f"[::]Running on {total_threads} threads!")
 
@@ -93,11 +91,22 @@ else:
         time_start = time()
         
         # get links of all ISPs
-        for td in bs.findAll("td"):
-                aTag = td.find("a")
-                if aTag is not None:
-                        hrefLink = baseUrl + aTag["href"]
-                        queue.put(hrefLink)
+        page = 1      
+        while page != 0:  
+                url = f"https://ipinfo.io/countries/{country}/{page}"
+                req = requests.get(url)
+
+                bs = BeautifulSoup(req.text, "html.parser")
+                if bs.find("li", {"id":"link_next"}):
+                        page += 1
+                else:
+                        page = 0
+
+                for td in bs.findAll("td"):
+                        aTag = td.find("a")
+                        if aTag is not None:
+                                hrefLink = baseUrl + aTag["href"]
+                                queue.put(hrefLink)
 
         for th in threads:
                 th.join()
@@ -108,4 +117,4 @@ else:
         total_time = time() - time_start;
         
         print(f"[!!]Done in {total_time:.2f} seconds")
-        print(f"[!!]Total IPs range: {total_ips}")
+        print(f"[!!]Total IPs: {total_ips}")
